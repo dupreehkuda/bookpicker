@@ -3,5 +3,6 @@ COPY . .
 RUN cargo build --release
 
 FROM debian:buster-slim
+RUN apt-get update && apt install -y openssl
 COPY --from=builder ./target/release/bookclub_bot ./target/release/bookclub_bot
 CMD ["/target/release/bookclub_bot"]
