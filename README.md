@@ -1,3 +1,7 @@
 # bookpicker
-Telegram bot for picking random suggested book for a book club event.
-Made with love to stop arguing with my friends.
+BookPicker is a telegram bot for picking random book from
+book club members' suggestions for a book club event.
+
+Just invite @bootpicker_bot to your book club chat and hit /start
+
+Made (with love) to stop arguing over nothing with my friends. 
