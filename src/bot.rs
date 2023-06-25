@@ -1,14 +1,9 @@
-use crate::repository::new_postgres_repository;
 use crate::service::{default_service, Service};
-use crate::{repository, service};
 use dotenv::dotenv;
 use lazy_static::lazy_static;
-use std::cell::RefCell;
-use std::env;
-use std::rc::Rc;
-use std::sync::Arc;
 use teloxide::{prelude::*, types::Message, utils::command::BotCommands};
 use tokio::runtime::Handle;
+use tokio_postgres::error::SqlState;
 
 #[derive(BotCommands, Clone)]
 #[command(
@@ -35,16 +30,30 @@ lazy_static! {
 }
 
 async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
+    println!("debug 6");
     match cmd {
         Command::Help => {
             bot.send_message(msg.chat.id, Command::descriptions().to_string())
                 .await?
         }
         Command::Start => {
-            SERVICE.register_new_bookclub(msg.chat.id.0).await.unwrap();
+            let result = SERVICE.register_new_bookclub(msg.chat.id.0).await;
+            if let Err(err) = result {
+                if let Some(db_err) = err.as_db_error() {
+                    if db_err.code() == &SqlState::UNIQUE_VIOLATION {
+                        bot.send_message(
+                            msg.chat.id,
+                            "You're already started a bookclub".to_string(),
+                        )
+                        .await?;
+                        return Ok(());
+                    }
+                }
+            }
+
             bot.send_message(
                 msg.chat.id,
-                format!("You're all set up! Now you can create event for your bookclub"),
+                "You're all set up! Now you can create event for your bookclub".to_string(),
             )
             .await?
         }

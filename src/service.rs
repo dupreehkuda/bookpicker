@@ -22,6 +22,7 @@ impl Service {
     pub async fn register_new_bookclub(&self, chat_id: i64) -> Result<(), Error> {
         self.repository
             .register_new_bookclub(models::NewBookclubRequest { chat_id })
+            .await
     }
 
     pub async fn new_book_club_event(&self, chat_id: i64, date: &str) -> Result<(), ParseError> {
