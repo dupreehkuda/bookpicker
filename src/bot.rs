@@ -1,27 +1,63 @@
+use crate::repository::new_postgres_repository;
+use crate::service::{default_service, Service};
+use crate::{repository, service};
 use dotenv::dotenv;
-use teloxide::{prelude::*, types::MessageId, utils::command::BotCommands};
-use crate::repository::Database;
+use lazy_static::lazy_static;
+use std::cell::RefCell;
+use std::env;
+use std::rc::Rc;
+use std::sync::Arc;
+use teloxide::{prelude::*, types::Message, utils::command::BotCommands};
+use tokio::runtime::Handle;
 
 #[derive(BotCommands, Clone)]
-#[command(rename_rule = "lowercase", description = "These commands are supported:")]
+#[command(
+    rename_rule = "lowercase",
+    description = "These commands are supported:"
+)]
 enum Command {
     #[command(description = "display this text.")]
     Help,
-    #[command(description = "handle a username.")]
-    Username(String),
-    #[command(description = "handle a username and an age.", parse_with = "split")]
-    UsernameAndAge { username: String, age: u8 },
+    #[command(description = "Starts bookpicker", parse_with = "split")]
+    Start,
+    #[command(description = "handle new event creation")]
+    NewEvent(String),
 }
 
-async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
+fn default_service_blocking() -> Service {
+    let rt = Handle::current();
+
+    tokio::task::block_in_place(|| rt.block_on(default_service()))
+}
+
+lazy_static! {
+    static ref SERVICE: Service = default_service_blocking();
+}
+
+async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
     match cmd {
-        Command::Help => bot.send_message(msg.chat.id, Command::descriptions().to_string()).await?,
-        Command::Username(username) => {
-            bot.send_message(msg.chat.id, format!("Your username is @{username}.")).await?
-        }
-        Command::UsernameAndAge { username, age } => {
-            bot.send_message(msg.chat.id, format!("Your username is @{username} and age is {age}."))
+        Command::Help => {
+            bot.send_message(msg.chat.id, Command::descriptions().to_string())
                 .await?
+        }
+        Command::Start => {
+            SERVICE.register_new_bookclub(msg.chat.id.0).await.unwrap();
+            bot.send_message(
+                msg.chat.id,
+                format!("You're all set up! Now you can create event for your bookclub"),
+            )
+            .await?
+        }
+        Command::NewEvent(date) => {
+            SERVICE
+                .new_book_club_event(msg.chat.id.0, date.as_str())
+                .await
+                .unwrap();
+            bot.send_message(
+                msg.chat.id,
+                format!("New bookclub event created on {}", date),
+            )
+            .await?
         }
     };
 
@@ -34,5 +70,19 @@ pub async fn run() {
 
     let bot = Bot::from_env();
 
-    Command::repl(bot, answer).await;
+    bot.set_my_commands(Command::bot_commands())
+        .await
+        .expect("Failed to set bot commands");
+
+    let handler = dptree::entry().branch(
+        Update::filter_message()
+            .filter_command::<Command>()
+            .endpoint(command_handler),
+    );
+
+    Dispatcher::builder(bot, handler)
+        .enable_ctrlc_handler()
+        .build()
+        .dispatch()
+        .await;
 }

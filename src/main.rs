@@ -1,4 +1,5 @@
 mod bot;
+mod models;
 mod repository;
 mod service;
 
