@@ -1,6 +1,8 @@
+use crate::err::CustomError as Err;
 use crate::service::{default_service, Service};
 use dotenv::dotenv;
 use lazy_static::lazy_static;
+use std::error::Error;
 use teloxide::{prelude::*, types::Message, utils::command::BotCommands};
 use tokio::runtime::Handle;
 use tokio_postgres::error::SqlState;
@@ -15,13 +17,14 @@ enum Command {
     Help,
     #[command(description = "Starts bookpicker", parse_with = "split")]
     Start,
-    #[command(description = "handle new event creation")]
+    #[command(description = "new event")]
     NewEvent(String),
+    #[command(description = "new suggestion")]
+    Suggest(String),
 }
 
 fn default_service_blocking() -> Service {
     let rt = Handle::current();
-
     tokio::task::block_in_place(|| rt.block_on(default_service()))
 }
 
@@ -36,25 +39,17 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
                 .await?
         }
         Command::Start => {
-            let result = SERVICE.register_new_bookclub(msg.chat.id.0).await;
-            if let Err(err) = result {
-                if let Some(db_err) = err.as_db_error() {
-                    if db_err.code() == &SqlState::UNIQUE_VIOLATION {
-                        bot.send_message(
-                            msg.chat.id,
-                            "You're already started a bookclub".to_string(),
-                        )
-                        .await?;
-                        return Ok(());
-                    }
+            let mut message =
+                "You're all set up! Now you can create event for your bookclub".to_string();
+
+            if let Err(err) = SERVICE.register_new_bookclub(msg.chat.id.0).await {
+                let db_err = err.downcast_ref::<tokio_postgres::Error>().unwrap();
+                if db_err.code().unwrap() == &SqlState::UNIQUE_VIOLATION {
+                    message = "You're already started a bookclub".to_string();
                 }
             }
 
-            bot.send_message(
-                msg.chat.id,
-                "You're all set up! Now you can create event for your bookclub".to_string(),
-            )
-            .await?
+            bot.send_message(msg.chat.id, message).await?
         }
         Command::NewEvent(date) => {
             if date.is_empty() {
@@ -67,16 +62,43 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
                 return Ok(());
             }
 
-            SERVICE
+            // todo check if other events are inactive and only then make new
+
+            let result = SERVICE
                 .new_book_club_event(msg.chat.id.0, date.as_str())
-                .await
-                .unwrap();
+                .await;
+
+            if let Err(err) = result {}
 
             bot.send_message(
                 msg.chat.id,
                 format!("New bookclub event created on {}", date),
             )
             .await?
+        }
+        Command::Suggest(suggestion) => {
+            if suggestion.is_empty() {
+                bot.send_message(msg.chat.id, "Your suggestion is empty ;(".to_string())
+                    .await?;
+
+                return Ok(());
+            }
+
+            let mut message = format!("Got it. Your suggestion:\n{}", suggestion);
+
+            if let Err(err) = SERVICE
+                .new_member_suggestion(
+                    msg.chat.id.0,
+                    msg.from().unwrap().id.0 as u32,
+                    suggestion.as_str(),
+                )
+                .await
+            {
+                let er = err.downcast_ref::<Err>().unwrap();
+                message = er.to_string()
+            }
+
+            bot.send_message(msg.chat.id, message).await?
         }
     };
 
