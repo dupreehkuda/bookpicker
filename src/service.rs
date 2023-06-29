@@ -30,8 +30,6 @@ impl Service {
         let event_date = NaiveDateTime::from_timestamp_opt(dt.timestamp(), 0).unwrap();
 
         let event_id = uuid::Uuid::new_v4();
-        println!("{}", event_id);
-        println!("{}", event_date);
 
         let resp = self
             .repository

@@ -66,8 +66,7 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
 
                 return Ok(());
             }
-            println!("{}", date);
-            // let result =
+
             SERVICE
                 .new_book_club_event(msg.chat.id.0, date.as_str())
                 .await
