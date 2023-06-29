@@ -30,7 +30,6 @@ lazy_static! {
 }
 
 async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
-    println!("debug 6");
     match cmd {
         Command::Help => {
             bot.send_message(msg.chat.id, Command::descriptions().to_string())
@@ -58,10 +57,22 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
             .await?
         }
         Command::NewEvent(date) => {
+            if date.is_empty() {
+                bot.send_message(
+                    msg.chat.id,
+                    "Please write a date in format - 2023.07.16 15:00".to_string(),
+                )
+                .await?;
+
+                return Ok(());
+            }
+            println!("{}", date);
+            // let result =
             SERVICE
                 .new_book_club_event(msg.chat.id.0, date.as_str())
                 .await
                 .unwrap();
+
             bot.send_message(
                 msg.chat.id,
                 format!("New bookclub event created on {}", date),

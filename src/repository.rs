@@ -2,8 +2,9 @@ use crate::models::{NewBookclubRequest, NewEventRequest};
 use async_trait::async_trait;
 use bb8_postgres::bb8::Pool;
 use bb8_postgres::{tokio_postgres::NoTls, PostgresConnectionManager};
-use futures::executor::block_on;
-use tokio_postgres::{Error, GenericClient};
+use chrono::{DateTime, NaiveDateTime, Utc};
+use tokio_postgres::types::{IsNull, ToSql, Type};
+use tokio_postgres::Error;
 
 #[async_trait]
 pub trait Repository {
@@ -37,6 +38,14 @@ impl Repository for Postgres {
     }
 
     async fn write_new_event(&self, req: NewEventRequest) -> Result<(), Error> {
-        todo!()
+        let conn = self.pool.get().await.unwrap();
+        let result = conn
+            .execute(
+                "INSERT INTO events (id, chat_id, event_date) VALUES ($1, $2, $3);",
+                &[&req.event_id, &req.chat_id, &req.event_date.and_utc()],
+            )
+            .await;
+
+        result.map(|_| ())
     }
 }

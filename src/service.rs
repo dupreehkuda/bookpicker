@@ -26,18 +26,23 @@ impl Service {
     }
 
     pub async fn new_book_club_event(&self, chat_id: i64, date: &str) -> Result<(), ParseError> {
-        let dt = Utc.datetime_from_str(date, "%Y-%m-%d %H:%M:%S")?;
+        let dt = Utc.datetime_from_str(date, "%Y.%m.%d %H:%M")?;
         let event_date = NaiveDateTime::from_timestamp_opt(dt.timestamp(), 0).unwrap();
 
         let event_id = uuid::Uuid::new_v4();
         println!("{}", event_id);
+        println!("{}", event_date);
 
-        let resp = self.repository.write_new_event(models::NewEventRequest {
-            chat_id,
-            event_id,
-            event_date,
-        });
+        let resp = self
+            .repository
+            .write_new_event(models::NewEventRequest {
+                chat_id,
+                event_id,
+                event_date,
+            })
+            .await;
 
+        resp.unwrap();
         Ok(())
     }
 }
