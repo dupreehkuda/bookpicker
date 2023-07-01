@@ -15,6 +15,11 @@ pub struct LastEventRequest {
     pub chat_id: i64,
 }
 
+pub struct AchieveEventRequest {
+    pub event_id: Uuid,
+    pub chat_id: i64,
+}
+
 pub struct LastEventResponse {
     pub event_id: Uuid,
     pub event_date: NaiveDateTime,

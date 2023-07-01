@@ -1,11 +1,11 @@
 use crate::models::{
-    LastEventRequest, LastEventResponse, NewBookclubRequest, NewEventRequest, NewMemberSuggestion,
+    AchieveEventRequest, LastEventRequest, LastEventResponse, NewBookclubRequest, NewEventRequest,
+    NewMemberSuggestion,
 };
 use async_trait::async_trait;
 use bb8_postgres::bb8::Pool;
 use bb8_postgres::{tokio_postgres::NoTls, PostgresConnectionManager};
 use chrono::{DateTime, NaiveDateTime, Utc};
-use tokio_postgres::types::{IsNull, ToSql, Type};
 use tokio_postgres::Error;
 use uuid::Uuid;
 
@@ -16,6 +16,7 @@ pub trait Repository {
     async fn write_new_event(&self, req: NewEventRequest) -> Result<(), Error>;
     async fn get_latest_event(&self, req: LastEventRequest) -> Result<LastEventResponse, Error>;
     async fn write_new_member_suggestion(&self, req: NewMemberSuggestion) -> Result<(), Error>;
+    async fn achieve_event(&self, req: AchieveEventRequest) -> Result<(), Error>;
 }
 
 pub struct Postgres {
@@ -54,8 +55,8 @@ impl Repository for Postgres {
         .await?;
 
         tx.execute(
-            "UPDATE bookclub SET active_event = $1 WHERE chat_id = $2;",
-            &[&req.event_id, &req.chat_id],
+            "UPDATE bookclub SET active_event = $1, next_event = $3 WHERE chat_id = $2;",
+            &[&req.event_id, &req.chat_id, &req.event_date],
         )
         .await?;
 
@@ -98,5 +99,24 @@ impl Repository for Postgres {
             .await;
 
         result.map(|_| ())
+    }
+
+    async fn achieve_event(&self, req: AchieveEventRequest) -> Result<(), Error> {
+        let mut conn = self.pool.get().await.unwrap();
+        let tx = conn.transaction().await.unwrap();
+
+        tx.execute(
+            "UPDATE events SET active = false, achieved_on = now() WHERE id = $1;",
+            &[&req.event_id],
+        )
+        .await?;
+
+        tx.execute(
+            "UPDATE bookclub SET active_event = null, last_event = now(), next_event = null WHERE chat_id = $1;",
+            &[&req.chat_id],
+        )
+        .await?;
+
+        tx.commit().await
     }
 }

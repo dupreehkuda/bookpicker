@@ -2,7 +2,6 @@ use crate::err::CustomError as Err;
 use crate::service::{default_service, Service};
 use dotenv::dotenv;
 use lazy_static::lazy_static;
-use std::error::Error;
 use teloxide::{prelude::*, types::Message, utils::command::BotCommands};
 use tokio::runtime::Handle;
 use tokio_postgres::error::SqlState;
@@ -21,6 +20,8 @@ enum Command {
     NewEvent(String),
     #[command(description = "new suggestion")]
     Suggest(String),
+    #[command(description = "achieves active event")]
+    Achieve,
 }
 
 fn default_service_blocking() -> Service {
@@ -94,6 +95,19 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
             {
                 let er = err.downcast_ref::<Err>().unwrap();
                 message = er.to_string()
+            }
+
+            bot.send_message(msg.chat.id, message).await?
+        }
+        Command::Achieve => {
+            let message: String;
+
+            match SERVICE.achieve_active_event(msg.chat.id.0).await {
+                Ok(date) => message = format!("Ok, event on {} achieved", date),
+                Err(err) => {
+                    let er = err.downcast_ref::<Err>().unwrap();
+                    message = er.to_string()
+                }
             }
 
             bot.send_message(msg.chat.id, message).await?

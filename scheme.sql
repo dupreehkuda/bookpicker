@@ -12,6 +12,7 @@ CREATE TABLE "events" (
                           "book" text,
                           "who_suggested" integer,
                           "event_date" timestamptz NOT NULL,
+                          "achieved_on" timestamptz,
                           "created_at" timestamptz NOT NULL DEFAULT NOW()
 );
 
