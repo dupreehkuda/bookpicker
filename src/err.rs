@@ -3,15 +3,17 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum CustomError {
-    Parse(String),
     NoActiveEventFound,
+    ActiveEventFound(String),
 }
 
 impl fmt::Display for CustomError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            Self::Parse(ref err) => write!(f, "Parse error: {}", err),
             Self::NoActiveEventFound => write!(f, "No active event found"),
+            Self::ActiveEventFound(ref date) => {
+                write!(f, "Already have an active event on {}", date)
+            }
         }
     }
 }

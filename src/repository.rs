@@ -5,10 +5,11 @@ use async_trait::async_trait;
 use bb8_postgres::bb8::Pool;
 use bb8_postgres::{tokio_postgres::NoTls, PostgresConnectionManager};
 use chrono::{DateTime, NaiveDateTime, Utc};
-use tokio_postgres::types::{to_sql_checked, IsNull, ToSql, Type};
+use tokio_postgres::types::{IsNull, ToSql, Type};
 use tokio_postgres::Error;
 use uuid::Uuid;
 
+// todo use this trait in service, study box
 #[async_trait]
 pub trait Repository {
     async fn register_new_bookclub(&self, req: NewBookclubRequest) -> Result<(), Error>;
@@ -43,15 +44,22 @@ impl Repository for Postgres {
     }
 
     async fn write_new_event(&self, req: NewEventRequest) -> Result<(), Error> {
-        let conn = self.pool.get().await.unwrap();
-        let result = conn
-            .execute(
-                "INSERT INTO events (id, chat_id, event_date) VALUES ($1, $2, $3);",
-                &[&req.event_id, &req.chat_id, &req.event_date.and_utc()],
-            )
-            .await;
+        let mut conn = self.pool.get().await.unwrap();
+        let tx = conn.transaction().await.unwrap();
 
-        result.map(|_| ())
+        tx.execute(
+            "INSERT INTO events (id, chat_id, event_date, active) VALUES ($1, $2, $3, true);",
+            &[&req.event_id, &req.chat_id, &req.event_date.and_utc()],
+        )
+        .await?;
+
+        tx.execute(
+            "UPDATE bookclub SET active_event = $1 WHERE chat_id = $2;",
+            &[&req.event_id, &req.chat_id],
+        )
+        .await?;
+
+        tx.commit().await
     }
 
     async fn get_latest_event(&self, req: LastEventRequest) -> Result<LastEventResponse, Error> {

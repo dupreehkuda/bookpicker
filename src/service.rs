@@ -19,11 +19,28 @@ impl Service {
             .map_err(|err| Box::new(err) as Box<dyn Error>)
     }
 
-    pub async fn new_book_club_event(&self, chat_id: i64, date: &str) -> Result<(), ParseError> {
+    pub async fn new_book_club_event(
+        &self,
+        chat_id: i64,
+        date: &str,
+    ) -> Result<(), Box<dyn Error>> {
         let dt = Utc.datetime_from_str(date, "%Y.%m.%d %H:%M")?;
         let event_date = NaiveDateTime::from_timestamp_opt(dt.timestamp(), 0).unwrap();
 
         // todo check if an event is already exists on this time or day overall
+        // todo check if all events are inactive
+
+        let latest_event = self
+            .repository
+            .get_latest_event(LastEventRequest { chat_id })
+            .await
+            .unwrap();
+
+        if !latest_event.event_id.is_nil() {
+            return Err(Box::new(Err::ActiveEventFound(
+                latest_event.event_date.to_string(),
+            )));
+        }
 
         let event_id = uuid::Uuid::new_v4();
 

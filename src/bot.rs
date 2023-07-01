@@ -62,19 +62,17 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
                 return Ok(());
             }
 
-            // todo check if other events are inactive and only then make new
+            let mut message = format!("New bookclub event created on {}", date);
 
-            let result = SERVICE
+            if let Err(err) = SERVICE
                 .new_book_club_event(msg.chat.id.0, date.as_str())
-                .await;
+                .await
+            {
+                let er = err.downcast_ref::<Err>().unwrap();
+                message = er.to_string()
+            }
 
-            if let Err(err) = result {}
-
-            bot.send_message(
-                msg.chat.id,
-                format!("New bookclub event created on {}", date),
-            )
-            .await?
+            bot.send_message(msg.chat.id, message).await?
         }
         Command::Suggest(suggestion) => {
             if suggestion.is_empty() {
