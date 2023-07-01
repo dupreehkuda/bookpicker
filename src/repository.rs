@@ -71,10 +71,12 @@ impl Repository for Postgres {
             });
         }
 
-        // todo wrong type, can't parse NaiveDateTime
+        let event_id = result[0].get(0);
+        let event_date: DateTime<Utc> = result[0].get(1);
+
         Ok(LastEventResponse {
-            event_id: result[0].get(0),
-            event_date: result[0].get(1),
+            event_id,
+            event_date: event_date.naive_utc(),
         })
     }
 
@@ -83,7 +85,7 @@ impl Repository for Postgres {
         let result = conn
             .execute(
             "INSERT INTO suggestions (event_id, chat_id, user_id, suggestion) VALUES ($1, $2, $3, $4);",
-            &[&req.event_id, &req.chat_id, &req.user_id, &req.suggestion]
+            &[&req.event_id, &req.chat_id, &(req.user_id as i64), &req.suggestion]
             )
             .await;
 
