@@ -140,6 +140,30 @@ impl Service {
 
         Ok(result.unwrap().to_string())
     }
+
+    pub async fn get_current_event_info(&self, chat_id: i64) -> Result<String, Box<dyn Error>> {
+        let latest_event = self
+            .repository
+            .get_latest_event(LastEventRequest { chat_id })
+            .await
+            .unwrap();
+
+        if latest_event.event_id.is_nil() {
+            return Err(Box::new(Err::NoActiveEventFound));
+        }
+
+        if latest_event.subject.is_empty() {
+            return Ok(format!(
+                "The next event is on \n{}.\nThe subject hasn't been picked yet",
+                latest_event.event_date
+            ));
+        }
+
+        Ok(format!(
+            "The next event is on {}.\nThe subject is - {}",
+            latest_event.event_date, latest_event.subject
+        ))
+    }
 }
 
 pub async fn default_service() -> Service {

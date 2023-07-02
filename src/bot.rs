@@ -24,6 +24,8 @@ enum Command {
     Achieve,
     #[command(description = "picks a subject for event")]
     Pick,
+    #[command(description = "current event info")]
+    Current,
 }
 
 fn default_service_blocking() -> Service {
@@ -116,6 +118,19 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
 
             match SERVICE.pick_from_suggestions(msg.chat.id.0).await {
                 Ok(subject) => message = format!("Randomly picked\n{}", subject),
+                Err(err) => {
+                    let er = err.downcast_ref::<Err>().unwrap();
+                    message = er.to_string()
+                }
+            }
+
+            bot.send_message(msg.chat.id, message).await?
+        }
+        Command::Current => {
+            let message: String;
+
+            match SERVICE.get_current_event_info(msg.chat.id.0).await {
+                Ok(text) => message = text,
                 Err(err) => {
                     let er = err.downcast_ref::<Err>().unwrap();
                     message = er.to_string()
