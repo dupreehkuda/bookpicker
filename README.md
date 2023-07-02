@@ -1,6 +1,6 @@
 # Clubvent
-Clubvent is a telegram bot for picking random club member 
-suggestion for a club event.
+clubvent is a telegram bot for picking random subject from club members'
+suggestions for a club event
 
 For example, you have a book club or a movie club and picking subject, 
 in this case a book or a movie, starts being problematic as more people

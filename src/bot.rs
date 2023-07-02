@@ -60,7 +60,7 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
             if date.is_empty() {
                 bot.send_message(
                     msg.chat.id,
-                    "Please write a date in format - 2023.07.16 15:00".to_string(),
+                    "Please write a date in format -\n/event 2023.07.16 15:00".to_string(),
                 )
                 .await?;
 
@@ -78,8 +78,11 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
         }
         Command::Suggest(suggestion) => {
             if suggestion.is_empty() {
-                bot.send_message(msg.chat.id, "Your suggestion is empty ;(".to_string())
-                    .await?;
+                bot.send_message(
+                    msg.chat.id,
+                    "Your suggestion is empty ;(\nFormat - /suggest smth".to_string(),
+                )
+                .await?;
 
                 return Ok(());
             }
