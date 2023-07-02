@@ -7,6 +7,8 @@ pub enum CustomError {
     ActiveEventFound(String),
     NoSuggestionsFound,
     AlreadyPickedSubject(String),
+    WrongDateFormat,
+    EventInPast,
 }
 
 impl fmt::Display for CustomError {
@@ -18,6 +20,8 @@ impl fmt::Display for CustomError {
             }
             Self::NoSuggestionsFound => write!(f, "No suggestions found"),
             Self::AlreadyPickedSubject(ref subject) => write!(f, "Already picked {}", subject),
+            Self::WrongDateFormat => write!(f, "Wrong format, sorry"),
+            Self::EventInPast => write!(f, "Unfortunately, you can't go forward to the past"),
         }
     }
 }

@@ -19,8 +19,17 @@ impl Service {
     }
 
     pub async fn new_club_event(&self, chat_id: i64, date: &str) -> Result<(), Box<dyn Error>> {
-        let dt = Utc.datetime_from_str(date, "%Y.%m.%d %H:%M")?;
-        let event_date = NaiveDateTime::from_timestamp_opt(dt.timestamp(), 0).unwrap();
+        let dt = Utc.datetime_from_str(date, "%Y.%m.%d %H:%M");
+        match dt {
+            Ok(_) => {}
+            Err(_) => return Err(Box::new(Err::WrongDateFormat)),
+        }
+
+        if dt.unwrap().le(&Utc::now()) {
+            return Err(Box::new(Err::EventInPast));
+        }
+
+        let event_date = NaiveDateTime::from_timestamp_opt(dt.unwrap().timestamp(), 0).unwrap();
 
         let latest_event = self
             .repository
