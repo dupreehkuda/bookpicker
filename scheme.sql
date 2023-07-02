@@ -1,4 +1,4 @@
-CREATE TABLE "bookclub" (
+CREATE TABLE "club" (
                             "chat_id" int8 PRIMARY KEY NOT NULL,
                             "last_event" timestamp,
                             "next_event" timestamp,
@@ -9,8 +9,8 @@ CREATE TABLE "bookclub" (
 CREATE TABLE "events" (
                           "id" uuid PRIMARY KEY NOT NULL,
                           "chat_id" int8 NOT NULL,
-                          "book" text,
-                          "who_suggested" integer,
+                          "subject" text,
+                          "active" bool,
                           "event_date" timestamptz NOT NULL,
                           "achieved_on" timestamptz,
                           "created_at" timestamptz NOT NULL DEFAULT NOW()
@@ -24,5 +24,5 @@ CREATE TABLE "suggestions" (
                                "created_at" timestamptz NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE "events" ADD FOREIGN KEY ("chat_id") REFERENCES "bookclub" ("chat_id");
+ALTER TABLE "events" ADD FOREIGN KEY ("chat_id") REFERENCES "club" ("chat_id");
 ALTER TABLE "suggestions" ADD FOREIGN KEY ("event_id") REFERENCES "events" ("id");

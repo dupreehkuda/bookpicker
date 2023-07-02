@@ -1,7 +1,7 @@
 use chrono::NaiveDateTime;
 use uuid::Uuid;
 
-pub struct NewBookclubRequest {
+pub struct NewClubRequest {
     pub chat_id: i64,
 }
 
@@ -23,6 +23,7 @@ pub struct AchieveEventRequest {
 pub struct LastEventResponse {
     pub event_id: Uuid,
     pub event_date: NaiveDateTime,
+    pub subject: String,
 }
 
 pub struct NewMemberSuggestion {
@@ -30,4 +31,17 @@ pub struct NewMemberSuggestion {
     pub chat_id: i64,
     pub user_id: u32,
     pub suggestion: String,
+}
+
+pub struct EventSuggestionsRequest {
+    pub event_id: Uuid,
+}
+
+pub struct EventSuggestionsResponse {
+    pub suggestions: Vec<String>,
+}
+
+pub struct PickedSubjectRequest {
+    pub event_id: Uuid,
+    pub subject: String,
 }

@@ -1,7 +1,4 @@
-use crate::models::{
-    AchieveEventRequest, LastEventRequest, LastEventResponse, NewBookclubRequest, NewEventRequest,
-    NewMemberSuggestion,
-};
+use crate::models::*;
 use async_trait::async_trait;
 use bb8_postgres::bb8::Pool;
 use bb8_postgres::{tokio_postgres::NoTls, PostgresConnectionManager};
@@ -12,11 +9,16 @@ use uuid::Uuid;
 // todo use this trait in service, study box
 #[async_trait]
 pub trait Repository {
-    async fn register_new_bookclub(&self, req: NewBookclubRequest) -> Result<(), Error>;
+    async fn register_new_club(&self, req: NewClubRequest) -> Result<(), Error>;
     async fn write_new_event(&self, req: NewEventRequest) -> Result<(), Error>;
     async fn get_latest_event(&self, req: LastEventRequest) -> Result<LastEventResponse, Error>;
     async fn write_new_member_suggestion(&self, req: NewMemberSuggestion) -> Result<(), Error>;
     async fn achieve_event(&self, req: AchieveEventRequest) -> Result<(), Error>;
+    async fn get_all_suggestions_for_event(
+        &self,
+        req: EventSuggestionsRequest,
+    ) -> Result<EventSuggestionsResponse, Error>;
+    async fn write_picked_subject(&self, req: PickedSubjectRequest) -> Result<(), Error>;
 }
 
 pub struct Postgres {
@@ -32,13 +34,10 @@ pub async fn new_postgres_repository(dsn: &str) -> Result<Postgres, Error> {
 
 #[async_trait]
 impl Repository for Postgres {
-    async fn register_new_bookclub(&self, req: NewBookclubRequest) -> Result<(), Error> {
+    async fn register_new_club(&self, req: NewClubRequest) -> Result<(), Error> {
         let conn = self.pool.get().await.unwrap();
         let result = conn
-            .execute(
-                "INSERT INTO bookclub (chat_id) VALUES ($1);",
-                &[&req.chat_id],
-            )
+            .execute("INSERT INTO club (chat_id) VALUES ($1);", &[&req.chat_id])
             .await;
 
         result.map(|_| ())
@@ -55,7 +54,7 @@ impl Repository for Postgres {
         .await?;
 
         tx.execute(
-            "UPDATE bookclub SET active_event = $1, next_event = $3 WHERE chat_id = $2;",
+            "UPDATE club SET active_event = $1, next_event = $3 WHERE chat_id = $2;",
             &[&req.event_id, &req.chat_id, &req.event_date],
         )
         .await?;
@@ -67,7 +66,7 @@ impl Repository for Postgres {
         let conn = self.pool.get().await.unwrap();
         let result = conn
             .query(
-                "SELECT id, event_date FROM events WHERE chat_id = $1 AND active = true;",
+                "SELECT id, event_date, subject FROM events WHERE chat_id = $1 AND active = true;",
                 &[&req.chat_id],
             )
             .await
@@ -77,15 +76,18 @@ impl Repository for Postgres {
             return Ok(LastEventResponse {
                 event_id: Uuid::default(),
                 event_date: NaiveDateTime::default(),
+                subject: String::new(),
             });
         }
 
         let event_id = result[0].get(0);
         let event_date: DateTime<Utc> = result[0].get(1);
+        let subject: Option<String> = result[0].get(2);
 
         Ok(LastEventResponse {
             event_id,
             event_date: event_date.naive_utc(),
+            subject: subject.unwrap_or_default(),
         })
     }
 
@@ -112,11 +114,47 @@ impl Repository for Postgres {
         .await?;
 
         tx.execute(
-            "UPDATE bookclub SET active_event = null, last_event = now(), next_event = null WHERE chat_id = $1;",
+            "UPDATE club SET active_event = null, last_event = now(), next_event = null WHERE chat_id = $1;",
             &[&req.chat_id],
         )
         .await?;
 
         tx.commit().await
+    }
+
+    async fn get_all_suggestions_for_event(
+        &self,
+        req: EventSuggestionsRequest,
+    ) -> Result<EventSuggestionsResponse, Error> {
+        let conn = self.pool.get().await.unwrap();
+        let result = conn
+            .query(
+                "SELECT suggestion FROM suggestions WHERE event_id = $1;",
+                &[&req.event_id],
+            )
+            .await
+            .unwrap();
+
+        let mut ans = EventSuggestionsResponse {
+            suggestions: vec![],
+        };
+
+        for row in result {
+            ans.suggestions.push(row.get(0))
+        }
+
+        Ok(ans)
+    }
+
+    async fn write_picked_subject(&self, req: PickedSubjectRequest) -> Result<(), Error> {
+        let conn = self.pool.get().await.unwrap();
+        let result = conn
+            .execute(
+                "UPDATE events SET subject = $1 WHERE id = $2;",
+                &[&req.subject, &req.event_id],
+            )
+            .await;
+
+        result.map(|_| ())
     }
 }

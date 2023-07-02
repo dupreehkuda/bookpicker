@@ -165,6 +165,7 @@ dependencies = [
  "log",
  "nanoid",
  "pretty_env_logger",
+ "rand",
  "teloxide",
  "tokio",
  "tokio-postgres",

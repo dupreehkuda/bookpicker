@@ -14,14 +14,16 @@ use tokio_postgres::error::SqlState;
 enum Command {
     #[command(description = "display this text.")]
     Help,
-    #[command(description = "Starts bookpicker", parse_with = "split")]
+    #[command(description = "starts club", parse_with = "split")]
     Start,
     #[command(description = "new event")]
-    NewEvent(String),
+    Event(String),
     #[command(description = "new suggestion")]
     Suggest(String),
     #[command(description = "achieves active event")]
     Achieve,
+    #[command(description = "picks a subject for event")]
+    Pick,
 }
 
 fn default_service_blocking() -> Service {
@@ -41,9 +43,9 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
         }
         Command::Start => {
             let mut message =
-                "You're all set up! Now you can create event for your bookclub".to_string();
+                "You're all set up! Now you can create event for your club".to_string();
 
-            if let Err(err) = SERVICE.register_new_bookclub(msg.chat.id.0).await {
+            if let Err(err) = SERVICE.register_new_club(msg.chat.id.0).await {
                 let db_err = err.downcast_ref::<tokio_postgres::Error>().unwrap();
                 if db_err.code().unwrap() == &SqlState::UNIQUE_VIOLATION {
                     message = "You're already started a bookclub".to_string();
@@ -52,7 +54,7 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
 
             bot.send_message(msg.chat.id, message).await?
         }
-        Command::NewEvent(date) => {
+        Command::Event(date) => {
             if date.is_empty() {
                 bot.send_message(
                     msg.chat.id,
@@ -63,12 +65,9 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
                 return Ok(());
             }
 
-            let mut message = format!("New bookclub event created on {}", date);
+            let mut message = format!("New club event created on {}", date);
 
-            if let Err(err) = SERVICE
-                .new_book_club_event(msg.chat.id.0, date.as_str())
-                .await
-            {
+            if let Err(err) = SERVICE.new_club_event(msg.chat.id.0, date.as_str()).await {
                 let er = err.downcast_ref::<Err>().unwrap();
                 message = er.to_string()
             }
@@ -104,6 +103,19 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
 
             match SERVICE.achieve_active_event(msg.chat.id.0).await {
                 Ok(date) => message = format!("Ok, event on {} achieved", date),
+                Err(err) => {
+                    let er = err.downcast_ref::<Err>().unwrap();
+                    message = er.to_string()
+                }
+            }
+
+            bot.send_message(msg.chat.id, message).await?
+        }
+        Command::Pick => {
+            let message: String;
+
+            match SERVICE.pick_from_suggestions(msg.chat.id.0).await {
+                Ok(subject) => message = format!("Randomly picked\n{}", subject),
                 Err(err) => {
                     let er = err.downcast_ref::<Err>().unwrap();
                     message = er.to_string()

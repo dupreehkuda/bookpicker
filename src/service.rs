@@ -1,8 +1,8 @@
 use crate::err::CustomError as Err;
-use crate::models;
-use crate::models::{AchieveEventRequest, LastEventRequest, NewMemberSuggestion};
+use crate::models::*;
 use crate::repository::{new_postgres_repository, Postgres, Repository};
 use chrono::prelude::*;
+use rand::seq::SliceRandom;
 use std::env;
 use std::error::Error;
 
@@ -11,18 +11,14 @@ pub struct Service {
 }
 
 impl Service {
-    pub async fn register_new_bookclub(&self, chat_id: i64) -> Result<(), Box<dyn Error>> {
+    pub async fn register_new_club(&self, chat_id: i64) -> Result<(), Box<dyn Error>> {
         self.repository
-            .register_new_bookclub(models::NewBookclubRequest { chat_id })
+            .register_new_club(NewClubRequest { chat_id })
             .await
             .map_err(|err| Box::new(err) as Box<dyn Error>)
     }
 
-    pub async fn new_book_club_event(
-        &self,
-        chat_id: i64,
-        date: &str,
-    ) -> Result<(), Box<dyn Error>> {
+    pub async fn new_club_event(&self, chat_id: i64, date: &str) -> Result<(), Box<dyn Error>> {
         let dt = Utc.datetime_from_str(date, "%Y.%m.%d %H:%M")?;
         let event_date = NaiveDateTime::from_timestamp_opt(dt.timestamp(), 0).unwrap();
 
@@ -42,7 +38,7 @@ impl Service {
 
         let resp = self
             .repository
-            .write_new_event(models::NewEventRequest {
+            .write_new_event(NewEventRequest {
                 chat_id,
                 event_id,
                 event_date,
@@ -102,6 +98,47 @@ impl Service {
             .unwrap();
 
         Ok(latest_event.event_date.to_string())
+    }
+
+    pub async fn pick_from_suggestions(&self, chat_id: i64) -> Result<String, Box<dyn Error>> {
+        let latest_event = self
+            .repository
+            .get_latest_event(LastEventRequest { chat_id })
+            .await
+            .unwrap();
+
+        if latest_event.event_id.is_nil() {
+            return Err(Box::new(Err::NoActiveEventFound));
+        }
+
+        if !latest_event.subject.is_empty() {
+            return Err(Box::new(Err::AlreadyPickedSubject(latest_event.subject)));
+        }
+
+        let suggestions = self
+            .repository
+            .get_all_suggestions_for_event(EventSuggestionsRequest {
+                event_id: latest_event.event_id,
+            })
+            .await
+            .unwrap()
+            .suggestions;
+
+        if suggestions.is_empty() {
+            return Err(Box::new(Err::NoSuggestionsFound));
+        }
+
+        let result = suggestions.choose(&mut rand::thread_rng());
+
+        self.repository
+            .write_picked_subject(PickedSubjectRequest {
+                event_id: latest_event.event_id,
+                subject: result.unwrap().to_string(),
+            })
+            .await
+            .unwrap();
+
+        Ok(result.unwrap().to_string())
     }
 }
 

@@ -5,6 +5,8 @@ use std::fmt;
 pub enum CustomError {
     NoActiveEventFound,
     ActiveEventFound(String),
+    NoSuggestionsFound,
+    AlreadyPickedSubject(String),
 }
 
 impl fmt::Display for CustomError {
@@ -14,6 +16,8 @@ impl fmt::Display for CustomError {
             Self::ActiveEventFound(ref date) => {
                 write!(f, "Already have an active event on {}", date)
             }
+            Self::NoSuggestionsFound => write!(f, "No suggestions found"),
+            Self::AlreadyPickedSubject(ref subject) => write!(f, "Already picked {}", subject),
         }
     }
 }
