@@ -1,6 +1,6 @@
 [package]
-name = "bookclub_bot"
-version = "0.1.0"
+name = "clubvent"
+version = "1.0.0"
 edition = "2021"
 
 [dependencies]

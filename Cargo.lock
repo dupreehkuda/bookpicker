@@ -152,27 +152,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bookclub_bot"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "bb8-postgres",
- "chrono",
- "dotenv",
- "dotenv_codegen",
- "futures",
- "lazy_static",
- "log",
- "nanoid",
- "pretty_env_logger",
- "rand",
- "teloxide",
- "tokio",
- "tokio-postgres",
- "uuid",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -215,6 +194,27 @@ dependencies = [
  "time",
  "wasm-bindgen",
  "winapi",
+]
+
+[[package]]
+name = "clubvent"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "bb8-postgres",
+ "chrono",
+ "dotenv",
+ "dotenv_codegen",
+ "futures",
+ "lazy_static",
+ "log",
+ "nanoid",
+ "pretty_env_logger",
+ "rand",
+ "teloxide",
+ "tokio",
+ "tokio-postgres",
+ "uuid",
 ]
 
 [[package]]
