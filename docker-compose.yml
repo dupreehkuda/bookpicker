@@ -1,29 +1,29 @@
 version: '3.9'
 
 services:
-#  service:
-#    build:
-#      dockerfile: ./Dockerfile
-#    container_name: service
-#    environment:
-#      - DATABASE_URI=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
-#      - HTTP_ADDRESS=${HTTP_ADDRESS}
-#    env_file: .env
-#    ports:
-#      - '80:80'
-#      - '88:88'
-#      - '443:443'
-#      - '8443:8443'
-#    restart: on-failure
-#    volumes:
-#      - .:/app
-#    depends_on:
-#      database:
-#        condition: service_started
+  bot:
+    build:
+      dockerfile: ./Dockerfile
+    container_name: bot
+    environment:
+      - DB_DSN=${DB_DSN}
+    env_file: .env
+    ports:
+      - '80:80'
+      - '88:88'
+      - '443:443'
+      - '8443:8443'
+    restart: always
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_started
+    network_mode: "host"
 
-  database:
+  db:
     image: postgres:latest
-    container_name: postgres
+    container_name: psql
     restart: on-failure
     env_file: .env
     environment:
