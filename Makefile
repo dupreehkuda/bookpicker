@@ -1,4 +1,4 @@
 .PHONY: deploy
 deploy:
 	docker pull ghcr.io/dupreehkuda/clubvent-prod:latest
-	docker run --rm --network="host" --env-file=".env" clubvent-prod
+	docker run -d --rm --network="host" --env-file=".env" ghcr.io/dupreehkuda/clubvent-prod:latest
