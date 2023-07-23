@@ -1,9 +1,15 @@
-FROM rust:1.70 AS builder
+FROM rust:latest as builder
+
+WORKDIR /app
+
 COPY . .
+
 RUN cargo build --release
 
-FROM alpine:latest
-RUN apk update && apk add openssl
-RUN apk add --no-cache ca-certificates && update-ca-certificates
-COPY --from=builder ./target/release/clubvent ./target/release/clubvent
-CMD ["/target/release/clubvent"]
+FROM debian:buster-slim
+
+RUN apt-get update && apt-get install -y ca-certificates
+
+COPY --from=builder /app/target/release/clubvent /usr/local/bin/clubvent
+
+CMD ["clubvent"]
