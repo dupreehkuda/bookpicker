@@ -18,7 +18,7 @@ impl Service {
             .map_err(|err| Box::new(err) as Box<dyn Error>)
     }
 
-    pub async fn new_club_event(&self, chat_id: i64, date: &str) -> Result<(), Box<dyn Error>> {
+    pub async fn new_club_event(&self, chat_id: i64, date: &str) -> Result<String, Box<dyn Error>> {
         let dt = Utc.datetime_from_str(date, "%Y.%m.%d %H:%M");
         match dt {
             Ok(_) => {}
@@ -55,7 +55,7 @@ impl Service {
             .await;
 
         resp.unwrap();
-        Ok(())
+        Ok(beautify_date(event_date))
     }
 
     pub async fn new_member_suggestion(
@@ -106,7 +106,9 @@ impl Service {
             .await
             .unwrap();
 
-        Ok(latest_event.event_date.to_string())
+        let formatted_date = beautify_date(latest_event.event_date);
+
+        Ok(formatted_date)
     }
 
     pub async fn pick_from_suggestions(&self, chat_id: i64) -> Result<String, Box<dyn Error>> {
@@ -161,16 +163,18 @@ impl Service {
             return Err(Box::new(Err::NoActiveEventFound));
         }
 
+        let formatted_date = beautify_date(latest_event.event_date);
+
         if latest_event.subject.is_empty() {
             return Ok(format!(
-                "The next event is on \n{}.\nThe subject hasn't been picked yet",
-                latest_event.event_date
+                "The next event is on {}.\nThe subject hasn't been picked yet",
+                formatted_date,
             ));
         }
 
         Ok(format!(
             "The next event is on {}.\nThe subject is - {}",
-            latest_event.event_date, latest_event.subject
+            formatted_date, latest_event.subject
         ))
     }
 }
@@ -182,4 +186,21 @@ pub async fn default_service() -> Service {
     Service {
         repository: repo.unwrap(),
     }
+}
+
+fn beautify_date(ts: NaiveDateTime) -> String {
+    let day = match ts.day() {
+        1 | 21 | 31 => format!("{}st", ts.day()),
+        2 | 22 => format!("{}nd", ts.day()),
+        3 | 23 => format!("{}rd", ts.day()),
+        _ => format!("{}th", ts.day()),
+    };
+
+    format!(
+        "{}, {} of {} at {}",
+        ts.format("%A"),
+        day,
+        ts.format("%B"),
+        ts.format("%H:%M")
+    )
 }

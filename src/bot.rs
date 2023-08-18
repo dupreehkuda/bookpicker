@@ -67,11 +67,14 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
                 return Ok(());
             }
 
-            let mut message = format!("New club event created on {}", date);
+            let mut message = String::new();
 
-            if let Err(err) = SERVICE.new_club_event(msg.chat.id.0, date.as_str()).await {
-                let er = err.downcast_ref::<Err>().unwrap();
-                message = er.to_string()
+            match SERVICE.new_club_event(msg.chat.id.0, date.as_str()).await {
+                Ok(date) => message = format!("New club event created on {}", date),
+                Err(err) => {
+                    let er = err.downcast_ref::<Err>().unwrap();
+                    message = er.to_string()
+                }
             }
 
             bot.send_message(msg.chat.id, message).await?
