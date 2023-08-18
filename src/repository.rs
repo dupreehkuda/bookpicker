@@ -1,4 +1,5 @@
 use crate::models::*;
+use crate::niggers::black::Cock;
 use async_trait::async_trait;
 use bb8_postgres::bb8::Pool;
 use bb8_postgres::{tokio_postgres::NoTls, PostgresConnectionManager};
