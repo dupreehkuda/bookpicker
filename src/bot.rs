@@ -38,14 +38,15 @@ lazy_static! {
 }
 
 async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
+    let mut message: String;
+
     match cmd {
         Command::Help => {
             bot.send_message(msg.chat.id, Command::descriptions().to_string())
                 .await?
         }
         Command::Start => {
-            let mut message =
-                "You're all set up! Now you can create event for your club".to_string();
+            message = "You're all set up! Now you can create event for your club".to_string();
 
             if let Err(err) = SERVICE.register_new_club(msg.chat.id.0).await {
                 let db_err = err.downcast_ref::<tokio_postgres::Error>().unwrap();
@@ -66,8 +67,6 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
 
                 return Ok(());
             }
-
-            let mut message = String::new();
 
             match SERVICE.new_club_event(msg.chat.id.0, date.as_str()).await {
                 Ok(date) => message = format!("New club event created on {}", date),
@@ -90,7 +89,7 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
                 return Ok(());
             }
 
-            let mut message = format!("Got it. Your suggestion:\n{}", suggestion);
+            message = format!("Got it. Your suggestion:\n{}", suggestion);
 
             if let Err(err) = SERVICE
                 .new_member_suggestion(
@@ -107,10 +106,8 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
             bot.send_message(msg.chat.id, message).await?
         }
         Command::Achieve => {
-            let message: String;
-
             match SERVICE.achieve_active_event(msg.chat.id.0).await {
-                Ok(date) => message = format!("Ok, event on {} achieved", date),
+                Ok(date) => message = format!("Ok, event on {} is achieved", date),
                 Err(err) => {
                     let er = err.downcast_ref::<Err>().unwrap();
                     message = er.to_string()
@@ -120,8 +117,6 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
             bot.send_message(msg.chat.id, message).await?
         }
         Command::Pick => {
-            let message: String;
-
             match SERVICE.pick_from_suggestions(msg.chat.id.0).await {
                 Ok(subject) => message = format!("Randomly picked\n{}", subject),
                 Err(err) => {
@@ -133,8 +128,6 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
             bot.send_message(msg.chat.id, message).await?
         }
         Command::Current => {
-            let message: String;
-
             match SERVICE.get_current_event_info(msg.chat.id.0).await {
                 Ok(text) => message = text,
                 Err(err) => {

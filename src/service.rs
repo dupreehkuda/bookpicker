@@ -74,6 +74,10 @@ impl Service {
             return Err(Box::new(Err::NoActiveEventFound));
         }
 
+        if !latest_event.subject.is_empty() {
+            return Err(Box::new(Err::AlreadyPickedSubject(latest_event.subject)));
+        }
+
         self.repository
             .write_new_member_suggestion(NewMemberSuggestion {
                 event_id: latest_event.event_id,
