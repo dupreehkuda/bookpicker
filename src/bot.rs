@@ -2,6 +2,7 @@ use crate::err::CustomError as Err;
 use crate::service::{default_service, Service};
 use dotenv::dotenv;
 use lazy_static::lazy_static;
+use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup};
 use teloxide::{prelude::*, types::Message, utils::command::BotCommands};
 use tokio::runtime::Handle;
 use tokio_postgres::error::SqlState;
@@ -117,15 +118,11 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
             bot.send_message(msg.chat.id, message).await?
         }
         Command::Pick => {
-            match SERVICE.pick_from_suggestions(msg.chat.id.0).await {
-                Ok(subject) => message = format!("Randomly picked\n{}", subject),
-                Err(err) => {
-                    let er = err.downcast_ref::<Err>().unwrap();
-                    message = er.to_string()
-                }
-            }
-
-            bot.send_message(msg.chat.id, message).await?
+            // todo just do random if quantity of suggestions is less than 2 or more than 10
+            let keyboard = make_picking_keyboard();
+            bot.send_message(msg.chat.id, "How would you like to pick?")
+                .reply_markup(keyboard)
+                .await?
         }
         Command::Current => {
             match SERVICE.get_current_event_info(msg.chat.id.0).await {
@@ -143,6 +140,59 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult
     Ok(())
 }
 
+fn make_picking_keyboard() -> InlineKeyboardMarkup {
+    let mut keyboard: Vec<Vec<InlineKeyboardButton>> = vec![];
+
+    let pick_variations = ["Random", "Poll"];
+
+    for vars in pick_variations.chunks(2) {
+        let row = vars
+            .iter()
+            .map(|&var| InlineKeyboardButton::callback(var.to_owned(), var.to_owned()))
+            .collect();
+
+        keyboard.push(row);
+    }
+
+    InlineKeyboardMarkup::new(keyboard)
+}
+
+async fn callback_handler(bot: Bot, q: CallbackQuery) -> ResponseResult<()> {
+    if let Some(method) = q.data {
+        bot.answer_callback_query(q.id).await?;
+
+        if let Some(Message { id, chat, .. }) = q.message {
+            bot.delete_message(chat.id, id).await?;
+
+            match method.as_str() {
+                "Poll" => {
+                    let options = SERVICE.get_all_suggestions(chat.id.0).await.unwrap();
+
+                    bot.send_poll(chat.id, "Pick a subject", options)
+                        .is_anonymous(false)
+                        .allows_multiple_answers(true)
+                        .await?;
+                }
+                "Random" => {
+                    let message: String;
+                    match SERVICE.pick_random_from_suggestions(chat.id.0).await {
+                        Ok(subject) => message = format!("Randomly picked\n{}", subject),
+                        Err(err) => {
+                            let er = err.downcast_ref::<Err>().unwrap();
+                            message = er.to_string()
+                        }
+                    }
+
+                    bot.send_message(chat.id, message).await?;
+                }
+                _ => {}
+            }
+        }
+    }
+
+    Ok(())
+}
+
 pub async fn run() {
     dotenv().ok();
     pretty_env_logger::init();
@@ -153,11 +203,13 @@ pub async fn run() {
         .await
         .expect("Failed to set bot commands");
 
-    let handler = dptree::entry().branch(
-        Update::filter_message()
-            .filter_command::<Command>()
-            .endpoint(command_handler),
-    );
+    let handler = dptree::entry()
+        .branch(
+            Update::filter_message()
+                .filter_command::<Command>()
+                .endpoint(command_handler),
+        )
+        .branch(Update::filter_callback_query().endpoint(callback_handler));
 
     Dispatcher::builder(bot, handler)
         .enable_ctrlc_handler()
