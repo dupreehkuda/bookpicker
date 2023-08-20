@@ -115,7 +115,10 @@ impl Service {
         Ok(formatted_date)
     }
 
-    pub async fn pick_from_suggestions(&self, chat_id: i64) -> Result<String, Box<dyn Error>> {
+    pub async fn pick_random_from_suggestions(
+        &self,
+        chat_id: i64,
+    ) -> Result<String, Box<dyn Error>> {
         let latest_event = self
             .repository
             .get_latest_event(LastEventRequest { chat_id })
@@ -180,6 +183,33 @@ impl Service {
             "The next event is on {}.\nThe subject is - {}",
             formatted_date, latest_event.subject
         ))
+    }
+
+    pub async fn get_all_suggestions(&self, chat_id: i64) -> Result<Vec<String>, Box<dyn Error>> {
+        let latest_event = self
+            .repository
+            .get_latest_event(LastEventRequest { chat_id })
+            .await
+            .unwrap();
+
+        let suggestions = self
+            .repository
+            .get_all_suggestions_for_event(EventSuggestionsRequest {
+                event_id: latest_event.event_id,
+            })
+            .await
+            .unwrap()
+            .suggestions;
+
+        if suggestions.is_empty() {
+            return Err(Box::new(Err::NoSuggestionsFound));
+        }
+
+        Ok(suggestions)
+    }
+
+    pub async fn set_poll_state(&self, chat_id: i64) -> Result<(), Box<dyn Error>> {
+        Ok(())
     }
 }
 
