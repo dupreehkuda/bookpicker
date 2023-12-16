@@ -6,7 +6,7 @@ COPY . .
 
 RUN cargo build --release
 
-FROM debian:buster-slim
+FROM ubuntu:latest
 
 RUN apt-get update && apt-get install -y ca-certificates
 
