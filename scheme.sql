@@ -13,7 +13,9 @@ CREATE TABLE "events" (
                           "active" bool,
                           "event_date" timestamptz NOT NULL,
                           "achieved_on" timestamptz,
-                          "created_at" timestamptz NOT NULL DEFAULT NOW()
+                          "created_at" timestamptz NOT NULL DEFAULT NOW(),
+                          "insights" boolean NOT NULL DEFAULT false,
+                          "insights_link" text
 );
 
 CREATE TABLE "suggestions" (

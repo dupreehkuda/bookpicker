@@ -9,6 +9,7 @@ pub enum CustomError {
     AlreadyPickedSubject(String),
     WrongDateFormat,
     EventInPast,
+    EventWithoutInsights,
 }
 
 impl fmt::Display for CustomError {
@@ -22,6 +23,10 @@ impl fmt::Display for CustomError {
             Self::AlreadyPickedSubject(ref subject) => write!(f, "Already picked {}", subject),
             Self::WrongDateFormat => write!(f, "Wrong format, sorry"),
             Self::EventInPast => write!(f, "Unfortunately, you can't go forward to the past"),
+            Self::EventWithoutInsights => write!(
+                f,
+                "Event was configured without insights, no need to start it"
+            ),
         }
     }
 }

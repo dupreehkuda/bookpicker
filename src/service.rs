@@ -1,4 +1,6 @@
 use crate::err::CustomError as Err;
+use crate::insights;
+use crate::insights::InsightsClient;
 use crate::models::*;
 use crate::repository::{new_postgres_repository, Postgres, Repository};
 use chrono::prelude::*;
@@ -8,6 +10,7 @@ use std::error::Error;
 
 pub struct Service {
     repository: Postgres,
+    insights: InsightsClient,
 }
 
 impl Service {
@@ -91,6 +94,65 @@ impl Service {
         Ok(())
     }
 
+    pub async fn toggle_with_insights(&self, chat_id: i64) -> Result<String, Box<dyn Error>> {
+        let latest_event = self
+            .repository
+            .get_latest_event(LastEventRequest { chat_id })
+            .await
+            .unwrap();
+
+        if latest_event.event_id.is_nil() {
+            return Err(Box::new(Err::NoActiveEventFound));
+        }
+
+        if !latest_event.subject.is_empty() {
+            return Ok("Unable to toggle insights because subject is already picked".to_string());
+        }
+
+        self.repository
+            .toggle_with_insights(EventToggleWithInsightsRequest {
+                event_id: latest_event.event_id,
+                with_insights: latest_event.with_insights,
+            })
+            .await?;
+
+        if latest_event.with_insights {
+            return Ok("Turned off insights for current event".to_string());
+        } else if !latest_event.with_insights {
+            return Ok("Turned on insights for current event".to_string());
+        }
+
+        Ok("Unable to toggle insights".to_string())
+    }
+
+    // start_active_event needed only to stop accepting new insights and get summary link
+    pub async fn start_active_event(&self, chat_id: i64) -> Result<String, Box<dyn Error>> {
+        let latest_event = self
+            .repository
+            .get_latest_event(LastEventRequest { chat_id })
+            .await
+            .unwrap();
+
+        if latest_event.event_id.is_nil() {
+            return Err(Box::new(Err::NoActiveEventFound));
+        }
+
+        if !latest_event.with_insights {
+            return Err(Box::new(Err::EventWithoutInsights));
+        }
+
+        let summary_link = self
+            .insights
+            .start_event(latest_event.event_id)
+            .await
+            .unwrap();
+
+        Ok(format!(
+            "Here is your [insights summary]({})\\.\nHave a great club\\!",
+            summary_link,
+        ))
+    }
+
     pub async fn achieve_active_event(&self, chat_id: i64) -> Result<String, Box<dyn Error>> {
         let latest_event = self
             .repository
@@ -109,6 +171,13 @@ impl Service {
             })
             .await
             .unwrap();
+
+        if latest_event.with_insights && !latest_event.subject.is_empty() {
+            self.insights
+                .finish_event(latest_event.event_id)
+                .await
+                .unwrap();
+        }
 
         let formatted_date = beautify_date(latest_event.event_date);
 
@@ -145,15 +214,43 @@ impl Service {
 
         let result = suggestions.choose(&mut rand::thread_rng());
 
-        self.repository
-            .write_picked_subject(PickedSubjectRequest {
+        if !latest_event.with_insights {
+            self.repository
+                .write_picked_subject(PickedSubjectRequest {
+                    event_id: latest_event.event_id,
+                    subject: result.unwrap().to_string(),
+                    insights_link: None,
+                })
+                .await
+                .unwrap();
+
+            return Ok(format!("Randomly picked\n{}", result.unwrap()));
+        }
+
+        let insights_link = self
+            .insights
+            .register_event(RegisterEventRequest {
                 event_id: latest_event.event_id,
-                subject: result.unwrap().to_string(),
+                event_subject: result.unwrap().to_string(),
+                club_id: chat_id,
             })
             .await
             .unwrap();
 
-        Ok(result.unwrap().to_string())
+        self.repository
+            .write_picked_subject(PickedSubjectRequest {
+                event_id: latest_event.event_id,
+                subject: result.unwrap().to_string(),
+                insights_link: Some(insights_link.clone()),
+            })
+            .await
+            .unwrap();
+
+        Ok(format!(
+            "Randomly picked\n{}\n\nAnd here is your [insights link]({})",
+            result.unwrap(),
+            insights_link,
+        ))
     }
 
     pub async fn get_current_event_info(&self, chat_id: i64) -> Result<String, Box<dyn Error>> {
@@ -176,10 +273,20 @@ impl Service {
             ));
         }
 
-        Ok(format!(
-            "The next event is on {}.\nThe subject is - {}",
+        let mut message = format!(
+            "The next event is on {}\\.\nThe subject is \\- {}",
             formatted_date, latest_event.subject
-        ))
+        );
+
+        if latest_event.with_insights {
+            message = format!(
+                "{}\nHere is the [insights link]({})",
+                message,
+                latest_event.insights_link.unwrap()
+            )
+        }
+
+        Ok(message)
     }
 }
 
@@ -187,8 +294,12 @@ pub async fn default_service() -> Service {
     let dsn = env::var("DB_DSN").unwrap();
     let repo = new_postgres_repository(dsn.as_str()).await;
 
+    let address = env::var("INSIGHTS_ADDRESS").unwrap();
+    let insights = insights::new(address);
+
     Service {
         repository: repo.unwrap(),
+        insights,
     }
 }
 
