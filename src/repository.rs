@@ -19,6 +19,7 @@ pub trait Repository {
         req: EventSuggestionsRequest,
     ) -> Result<EventSuggestionsResponse, Error>;
     async fn write_picked_subject(&self, req: PickedSubjectRequest) -> Result<(), Error>;
+    async fn toggle_with_insights(&self, req: EventToggleWithInsightsRequest) -> Result<(), Error>;
 }
 
 pub struct Postgres {
@@ -66,7 +67,7 @@ impl Repository for Postgres {
         let conn = self.pool.get().await.unwrap();
         let result = conn
             .query(
-                "SELECT id, event_date, subject FROM events WHERE chat_id = $1 AND active = true;",
+                "SELECT id, event_date, subject, insights, insights_link FROM events WHERE chat_id = $1 AND active = true;",
                 &[&req.chat_id],
             )
             .await
@@ -77,17 +78,23 @@ impl Repository for Postgres {
                 event_id: Uuid::default(),
                 event_date: NaiveDateTime::default(),
                 subject: String::new(),
+                with_insights: false,
+                insights_link: None,
             });
         }
 
         let event_id = result[0].get(0);
         let event_date: DateTime<Utc> = result[0].get(1);
         let subject: Option<String> = result[0].get(2);
+        let with_insights: bool = result[0].get(3);
+        let insights_link: Option<String> = result[0].get(4);
 
         Ok(LastEventResponse {
             event_id,
             event_date: event_date.naive_utc(),
             subject: subject.unwrap_or_default(),
+            with_insights,
+            insights_link,
         })
     }
 
@@ -150,11 +157,35 @@ impl Repository for Postgres {
         let conn = self.pool.get().await.unwrap();
         let result = conn
             .execute(
-                "UPDATE events SET subject = $1 WHERE id = $2;",
-                &[&req.subject, &req.event_id],
+                "UPDATE events SET subject = $1, insights_link = $2 WHERE id = $3;",
+                &[&req.subject, &req.insights_link, &req.event_id],
             )
             .await;
 
         result.map(|_| ())
+    }
+
+    async fn toggle_with_insights(&self, req: EventToggleWithInsightsRequest) -> Result<(), Error> {
+        let conn = self.pool.get().await.unwrap();
+
+        if req.with_insights {
+            let result = conn
+                .execute(
+                    "UPDATE events SET insights = false WHERE id = $1",
+                    &[&req.event_id],
+                )
+                .await;
+
+            result.map(|_| ())
+        } else {
+            let result = conn
+                .execute(
+                    "UPDATE events SET insights = true WHERE id = $1",
+                    &[&req.event_id],
+                )
+                .await;
+
+            result.map(|_| ())
+        }
     }
 }

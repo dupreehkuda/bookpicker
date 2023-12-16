@@ -1,8 +1,9 @@
 mod bot;
+mod err;
+mod insights;
 mod models;
 mod repository;
 mod service;
-mod err;
 
 #[tokio::main]
 async fn main() {
