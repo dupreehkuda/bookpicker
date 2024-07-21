@@ -231,7 +231,7 @@ impl Service {
             .insights
             .register_event(RegisterEventRequest {
                 event_id: latest_event.event_id,
-                event_subject: result.unwrap().to_string(),
+                event_subject: unescape_hyphen(result.unwrap()),
                 club_id: chat_id,
             })
             .await
@@ -240,7 +240,7 @@ impl Service {
         self.repository
             .write_picked_subject(PickedSubjectRequest {
                 event_id: latest_event.event_id,
-                subject: unescape_hyphen(result.unwrap().as_str()),
+                subject: result.unwrap().to_string(),
                 insights_link: Some(insights_link.clone()),
             })
             .await
