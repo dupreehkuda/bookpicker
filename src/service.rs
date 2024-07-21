@@ -86,7 +86,7 @@ impl Service {
                 event_id: latest_event.event_id,
                 chat_id,
                 user_id,
-                suggestion: suggestion.to_string(),
+                suggestion: escape_hyphen(suggestion).to_string(),
             })
             .await
             .unwrap();
@@ -240,7 +240,7 @@ impl Service {
         self.repository
             .write_picked_subject(PickedSubjectRequest {
                 event_id: latest_event.event_id,
-                subject: result.unwrap().to_string(),
+                subject: unescape_hyphen(result.unwrap().as_str()),
                 insights_link: Some(insights_link.clone()),
             })
             .await
@@ -301,6 +301,14 @@ pub async fn default_service() -> Service {
         repository: repo.unwrap(),
         insights,
     }
+}
+
+fn escape_hyphen(text: &str) -> String {
+    text.replace("-", "\\-")
+}
+
+fn unescape_hyphen(text: &str) -> String {
+    text.replace("\\-", "-")
 }
 
 fn beautify_date(ts: NaiveDateTime) -> String {

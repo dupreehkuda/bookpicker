@@ -6,6 +6,7 @@ services:
       dockerfile: ./Dockerfile
     container_name: bot
     environment:
+      - TELOXIDE_TOKEN=${TELOXIDE_TOKEN}
       - DB_DSN=${DB_DSN}
     env_file: .env
     restart: always
