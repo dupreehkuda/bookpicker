@@ -1,4 +1,4 @@
-CREATE TABLE "club" (
+CREATE TABLE IF NOT EXISTS "club" (
                             "chat_id" int8 PRIMARY KEY NOT NULL,
                             "last_event" timestamp,
                             "next_event" timestamp,
@@ -6,7 +6,7 @@ CREATE TABLE "club" (
                             "active_event" uuid
 );
 
-CREATE TABLE "events" (
+CREATE TABLE IF NOT EXISTS "events" (
                           "id" uuid PRIMARY KEY NOT NULL,
                           "chat_id" int8 NOT NULL,
                           "subject" text,
@@ -18,7 +18,7 @@ CREATE TABLE "events" (
                           "insights_link" text
 );
 
-CREATE TABLE "suggestions" (
+CREATE TABLE IF NOT EXISTS "suggestions" (
                                "event_id" uuid NOT NULL,
                                "chat_id" int8 NOT NULL,
                                "user_id" int8 NOT NULL,
